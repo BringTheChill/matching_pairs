@@ -1,0 +1,34 @@
+[
+  {
+    "card_color": {
+      "blue": 0.01,
+      "green": 0.549,
+      "red": 0.9686
+    },
+    "card_symbol": "⬛️",
+    "symbols": [
+      "🎃",
+      "👻",
+      "👿",
+      "💀"
+    ],
+    "title": "Halloween"
+  },
+  {
+    "card_color": {
+      "blue": 0.549,
+      "green": 0.8667,
+      "red": 0.949
+    },
+    "card_symbol": "🎈",
+    "symbols": [
+      "🔴",
+      "🔵",
+      "🟠",
+      "🟡",
+      "🟢",
+      "🟣"
+    ],
+    "title": "Ballons"
+  }
+]
