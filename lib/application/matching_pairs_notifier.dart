@@ -13,7 +13,7 @@ class MatchingPairsNotifier extends ChangeNotifier {
   MatchingPairsState get state => _state;
 
   void initialize({GameTheme? gameTheme}) {
-    final symbols = gameTheme?.symbols ?? [];
+    final symbols =  gameTheme?.symbols ?? [ '🍌', '🍇', '🍓', '🍉'];
     
     final selectedSymbols = symbols.take(4).toList();
     final List<GameCardData> cards = [];
@@ -151,11 +151,11 @@ class MatchingPairsNotifier extends ChangeNotifier {
     _state = _state.copyWith(isGameCompleted: true, score: finalScore);
   }
 
-  void resetGame() {
+  void resetGame({GameTheme? gameTheme}) {
     _flipBackTimer?.cancel();
     _stopTimer();
     _state = MatchingPairsState.initial();
-    notifyListeners();
+    initialize(gameTheme: gameTheme);
   }
 
   void _startTimer() {

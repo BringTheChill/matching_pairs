@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:matching_pairs/application/matching_pairs_notifier.dart';
 import 'package:matching_pairs/core/themes/theme_notifier.dart';
 import 'package:matching_pairs/core/themes/widgets/theme_selector.dart';
+import 'package:matching_pairs/presentation/widgets/congratulations_overlay_widget.dart';
 import 'package:matching_pairs/presentation/widgets/game_card_widget.dart';
 import 'package:provider/provider.dart';
 
@@ -71,7 +72,17 @@ class MatchingPairsView extends StatelessWidget {
             children: [
               const MatchingPairsContent(),
 
-              // if (notifier.state.isGameCompleted)
+              if (notifier.state.isGameCompleted)
+                CongratulationsOverlayWidget(
+                  isSuccess: !notifier.state.isGameOverByTimeout,
+                  finalScore: notifier.state.score,
+                  onDismiss: () {
+                    final themeNotifier = context.read<ThemeNotifier>();
+                    notifier.resetGame(
+                      gameTheme: themeNotifier.currentGameTheme,
+                    );
+                  },
+                ),
             ],
           );
         },
@@ -151,9 +162,8 @@ class MatchingPairsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Consumer<MatchingPairsNotifier>(
-      builder: (context, matchingPairsNotifier, child) {
-        final state = matchingPairsNotifier.state;
-
+      builder: (context, notifier, child) {
+        final state = notifier.state;
         return Padding(
           padding: EdgeInsets.symmetric(horizontal: 40),
           child: Column(
@@ -230,9 +240,57 @@ class MatchingPairsContent extends StatelessWidget {
                         },
                       )
                     ),
+
+                    Padding(
+                      padding: EdgeInsets.only(bottom: 16, top: 16),
+                      child: Consumer2<MatchingPairsNotifier, ThemeNotifier>(
+                        builder: (context, matchingPairsNotifier, themeNotifier, child) {
+                          final isGameStarted = matchingPairsNotifier.state.isGameStarted;
+                          final isGameCompleted = matchingPairsNotifier.state.isGameCompleted;
+
+                          if (isGameCompleted) {
+                            return const SizedBox.shrink();
+                          }
+
+                          String buttonText;
+                          if (!isGameStarted) {
+                            buttonText = 'Start';
+                          } else {
+                            buttonText = 'Reset';
+                          }
+
+                          return ElevatedButton(
+                            onPressed: () {
+                              matchingPairsNotifier.resetGame(
+                                gameTheme: themeNotifier.currentGameTheme,
+                              );
+                              matchingPairsNotifier.startGame();
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Theme.of(context).colorScheme.surface,
+                              foregroundColor: Theme.of(context).colorScheme.error,
+                              padding: EdgeInsets.symmetric(horizontal: 60, vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              minimumSize: Size(0, 48),
+                            ),
+                            child: Text(
+                              buttonText,
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            )
+                          );
+                        },
+                      ),
+                    )
                   ],
                 ),
-              )
+              ),
+
+              SizedBox(height: 16),
             ],
           ),
         );
