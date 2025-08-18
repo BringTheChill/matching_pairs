@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import 'package:matching_pairs/core/constants/game_constants.dart';
 import 'game_theme.dart';
 
 class GameThemeService {
@@ -58,6 +59,16 @@ class GameThemeService {
     return allThemes;
   }
 
+  /// Get fallback theme using default constants
+  static GameTheme getDefaultTheme() {
+    return GameTheme(
+      title: 'Default Theme',
+      cardSymbol: '❓',
+      symbols: GameConstants.defaultSymbols,
+      cardColor: const GameThemeColor(red: 0.2, green: 0.6, blue: 1.0),
+    );
+  }
+
   /// Validate theme data structure
   static bool isValidTheme(Map<String, dynamic> json) {
     try {
@@ -76,6 +87,9 @@ class GameThemeService {
 
       final symbols = json['symbols'];
       if (symbols is! List || symbols.isEmpty) return false;
+      
+      // Ensure we have at least the minimum required symbols for the game
+      if (symbols.length < GameConstants.defaultPairCount) return false;
 
       return true;
     } catch (e) {

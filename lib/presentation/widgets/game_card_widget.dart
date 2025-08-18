@@ -1,34 +1,48 @@
 import 'package:flutter/material.dart';
 import 'package:matching_pairs/application/matching_pairs_state.dart';
+import 'package:matching_pairs/core/constants/game_constants.dart';
+import 'package:matching_pairs/core/extensions/game_theme_extensions.dart';
 import 'package:matching_pairs/core/themes/game_theme.dart';
 
 class GameCardWidget extends StatelessWidget {
   final GameCardData cardData;
   final VoidCallback? onTap;
   final GameTheme? gameTheme;
+  final Duration animationDelay;
 
   const GameCardWidget({
     required this.cardData,
     this.onTap,
     this.gameTheme,
+    this.animationDelay = Duration.zero,
     super.key,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: cardData.isMatched ? null : onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        decoration: BoxDecoration(
-          color: cardData.isMatched
-              ? Colors.transparent
-              : (gameTheme?.cardFlutterColor ?? Theme.of(context).colorScheme.primary),
-          borderRadius: BorderRadius.circular(12),
-          border: cardData.isFlipped ? Border.all(color: Theme.of(context).colorScheme.secondary, width: 3) : null,
-        ),
-        child: Center(
-          child: _buildCardContent(),
+    return Semantics(
+      label: 'Game card ${cardData.isFlipped ? cardData.symbol : 'hidden'}',
+      hint: cardData.isMatched ? 'Already matched' : 'Tap to flip',
+      child: GestureDetector(
+        onTap: cardData.isMatched ? null : onTap,
+        child: AnimatedContainer(
+          duration: GameConstants.cardFlipDuration + animationDelay,
+          curve: Curves.easeOutBack,
+          decoration: BoxDecoration(
+            color: cardData.isMatched
+                ? Colors.transparent
+                : gameTheme.cardColorOrDefault(context),
+            borderRadius: BorderRadius.circular(GameConstants.cardBorderRadius),
+            border: cardData.isFlipped 
+                ? Border.all(
+                    color: Theme.of(context).colorScheme.secondary, 
+                    width: GameConstants.cardBorderWidth,
+                  ) 
+                : null,
+          ),
+          child: Center(
+            child: _buildCardContent(),
+          ),
         ),
       ),
     );
@@ -40,12 +54,12 @@ class GameCardWidget extends StatelessWidget {
     } else if (cardData.isFlipped) {
       return Text(
         cardData.symbol,
-        style: const TextStyle(fontSize: 40),
+        style: const TextStyle(fontSize: GameConstants.cardSymbolSize),
       );
     } else {
       return Text(
-        gameTheme?.cardSymbol ?? '',
-        style: const TextStyle(fontSize: 40),
+        gameTheme.cardSymbolOrDefault(),
+        style: const TextStyle(fontSize: GameConstants.cardSymbolSize),
       );
     }
   }

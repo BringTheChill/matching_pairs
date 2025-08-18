@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:matching_pairs/application/matching_pairs_notifier.dart';
+import 'package:matching_pairs/core/constants/game_constants.dart';
+import 'package:matching_pairs/core/extensions/game_theme_extensions.dart';
 import 'package:matching_pairs/core/themes/theme_notifier.dart';
 import 'package:matching_pairs/core/themes/widgets/theme_selector.dart';
 import 'package:matching_pairs/presentation/widgets/congratulations_overlay_widget.dart';
-import 'package:matching_pairs/presentation/widgets/game_card_widget.dart';
+import 'package:matching_pairs/presentation/widgets/error_widget.dart';
+import 'package:matching_pairs/presentation/widgets/game_controls_widget.dart';
+import 'package:matching_pairs/presentation/widgets/game_grid_widget.dart';
+import 'package:matching_pairs/presentation/widgets/game_stats_widget.dart';
 import 'package:provider/provider.dart';
 
 class MatchingPairsPage extends StatelessWidget {
@@ -33,12 +38,13 @@ class MatchingPairsView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Consumer<ThemeNotifier>(
-          builder: (context, themeNotifier, child) {
+        title: Selector<ThemeNotifier, String>(
+          selector: (_, notifier) => notifier.currentGameTheme.titleOrDefault(),
+          builder: (context, title, child) {
             return Text(
-              themeNotifier.currentGameTheme?.title ?? 'Matching Pairs',
+              title,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: GameConstants.titleFontSize,
                 fontWeight: FontWeight.w700,
                 color: Theme.of(context).colorScheme.onSurface,
               ),
@@ -46,46 +52,50 @@ class MatchingPairsView extends StatelessWidget {
           },
         ),
         actions: [
-          Consumer<ThemeNotifier>(
-            builder: (context, themeNotifier, child) {
+          IconButton(
+            icon: const Icon(Icons.palette, size: 24),
+            tooltip: 'Select Game Theme',
+            onPressed: () => _showThemeSelector(context),
+          ),
+          Selector<ThemeNotifier, ({IconData icon, String name})>(
+            selector: (_, notifier) => (
+              icon: notifier.currentThemeIcon,
+              name: notifier.currentThemeName,
+            ),
+            builder: (context, themeData, child) {
               return IconButton(
-                icon: Icon(Icons.palette, size: 24),
-                tooltip: 'Select Game Theme',
-                onPressed: () => _showThemeSelector(context),
+                icon: Icon(themeData.icon, size: 24),
+                tooltip: 'Theme ${themeData.name}',
+                onPressed: () => context.read<ThemeNotifier>().toggleTheme(),
               );
             },
           ),
-          Consumer<ThemeNotifier>(
-            builder: (context, themeNotifier, child) {
-              return IconButton(
-                icon: Icon(themeNotifier.currentThemeIcon, size: 24),
-                tooltip: 'Theme ${themeNotifier.currentThemeName}',
-                onPressed: () => themeNotifier.toggleTheme(),
-              );
-            },
-          )
         ],
       ),
-      body: Consumer<MatchingPairsNotifier>(
-        builder: (context, notifier, child) {
-          return Stack(
-            children: [
-              const MatchingPairsContent(),
-
-              if (notifier.state.isGameCompleted)
-                CongratulationsOverlayWidget(
-                  isSuccess: !notifier.state.isGameOverByTimeout,
-                  finalScore: notifier.state.score,
-                  onDismiss: () {
-                    final themeNotifier = context.read<ThemeNotifier>();
-                    notifier.resetGame(
-                      gameTheme: themeNotifier.currentGameTheme,
-                    );
-                  },
-                ),
-            ],
-          );
-        },
+      body: Stack(
+        children: [
+          const MatchingPairsContent(),
+          Selector<MatchingPairsNotifier, ({bool isCompleted, bool isTimeout, int score})>(
+            selector: (_, notifier) => (
+              isCompleted: notifier.state.isGameCompleted,
+              isTimeout: notifier.state.isGameOverByTimeout,
+              score: notifier.state.score,
+            ),
+            builder: (context, gameData, child) {
+              if (!gameData.isCompleted) return const SizedBox.shrink();
+              
+              return CongratulationsOverlayWidget(
+                isSuccess: !gameData.isTimeout,
+                finalScore: gameData.score,
+                onDismiss: () {
+                  final themeNotifier = context.read<ThemeNotifier>();
+                  final gameNotifier = context.read<MatchingPairsNotifier>();
+                  gameNotifier.resetGame(gameTheme: themeNotifier.currentGameTheme);
+                },
+              );
+            },
+          ),
+        ],
       ),
       );
   }
@@ -121,34 +131,50 @@ class ThemeSelectorSheet extends StatelessWidget {
 
         // Theme selector
         Expanded(
-          child: Consumer<ThemeNotifier>(
-            builder: (context, themeNotifier, child) {
-              return Column(
-                children: [
-                  Padding(
-                    padding: EdgeInsets.all(16),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Select Game Theme',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ],
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Select Game Theme',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Selector<ThemeNotifier, ({bool isLoading, String? error})>(
+                  selector: (_, notifier) => (
+                    isLoading: notifier.isLoadingThemes,
+                    error: notifier.themeError,
                   ),
-
-                  Expanded(child: ThemeSelector()),
-                ],
-              );
-            },
+                  builder: (context, themeState, child) {
+                    if (themeState.isLoading) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    
+                    if (themeState.error != null) {
+                      return GameErrorWidget(
+                        message: themeState.error!,
+                        onRetry: () => context.read<ThemeNotifier>().retryLoadingThemes(),
+                      );
+                    }
+                    
+                    return const ThemeSelector();
+                  },
+                ),
+              ),
+            ],
           ),
         )
       ],
@@ -161,140 +187,50 @@ class MatchingPairsContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<MatchingPairsNotifier>(
-      builder: (context, notifier, child) {
-        final state = notifier.state;
-        return Padding(
-          padding: EdgeInsets.symmetric(horizontal: 40),
-          child: Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: Column(
-                  children: [
-                    Text(
-                      'Score: ${state.score}',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).colorScheme.onSurface,
-                      )
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Text(
-                          'Pairs: ${state.matchedPairs}/${state.totalPairs}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                          ),
-                        ),
-                        Text(
-                          'Attempts: ${state.attempts}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                          ),
-                        ),
-                        Text(
-                          'Time: ${state.formattedTime}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.7),
-                          ),
-                        )
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-
-              SizedBox(height: 24),
-
-              Expanded(
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: GridView.builder(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 3,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                        ),
-                        itemCount: state.cards.length,
-                        itemBuilder: (context, index) {
-                          final card = state.cards[index];
-                          return Consumer<ThemeNotifier>(
-                            builder: (context, themeNotifier, child) {
-                              return GameCardWidget(
-                                cardData: card,
-                                gameTheme: themeNotifier.currentGameTheme,
-                                onTap: () => context.read<MatchingPairsNotifier>().selectCard(card.id),
-                              );
-                            },
-                          );
-                        },
-                      )
-                    ),
-
-                    Padding(
-                      padding: EdgeInsets.only(bottom: 16, top: 16),
-                      child: Consumer2<MatchingPairsNotifier, ThemeNotifier>(
-                        builder: (context, matchingPairsNotifier, themeNotifier, child) {
-                          final isGameStarted = matchingPairsNotifier.state.isGameStarted;
-                          final isGameCompleted = matchingPairsNotifier.state.isGameCompleted;
-
-                          if (isGameCompleted) {
-                            return const SizedBox.shrink();
-                          }
-
-                          String buttonText;
-                          if (!isGameStarted) {
-                            buttonText = 'Start';
-                          } else {
-                            buttonText = 'Reset';
-                          }
-
-                          return ElevatedButton(
-                            onPressed: () {
-                              matchingPairsNotifier.resetGame(
-                                gameTheme: themeNotifier.currentGameTheme,
-                              );
-                              matchingPairsNotifier.startGame();
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Theme.of(context).colorScheme.surface,
-                              foregroundColor: Theme.of(context).colorScheme.error,
-                              padding: EdgeInsets.symmetric(horizontal: 60, vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              minimumSize: Size(0, 48),
-                            ),
-                            child: Text(
-                              buttonText,
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            )
-                          );
-                        },
-                      ),
-                    )
-                  ],
-                ),
-              ),
-
-              SizedBox(height: 16),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: GameConstants.horizontalPadding),
+      child: Column(
+        children: [
+          // Game stats - using Consumer to ensure timer updates
+          Consumer<MatchingPairsNotifier>(
+            builder: (context, notifier, child) {
+              return GameStatsWidget(state: notifier.state);
+            },
           ),
-        );
-      },
+          
+          const SizedBox(height: 24),
+
+          // Game grid and controls
+          Expanded(
+            child: Column(
+              children: [
+                // Game grid
+                Consumer2<MatchingPairsNotifier, ThemeNotifier>(
+                  builder: (context, gameNotifier, themeNotifier, child) {
+                    return GameGridWidget(
+                      cards: gameNotifier.state.cards,
+                      gameTheme: themeNotifier.currentGameTheme,
+                    );
+                  },
+                ),
+
+                // Game controls
+                Consumer2<MatchingPairsNotifier, ThemeNotifier>(
+                  builder: (context, gameNotifier, themeNotifier, child) {
+                    return GameControlsWidget(
+                      isGameStarted: gameNotifier.state.isGameStarted,
+                      isGameCompleted: gameNotifier.state.isGameCompleted,
+                      gameTheme: themeNotifier.currentGameTheme,
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+        ],
+      ),
     );
   }
 }

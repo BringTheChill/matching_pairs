@@ -31,10 +31,10 @@ class ThemeSelector extends StatelessWidget {
                     crossAxisSpacing: 16,
                     childAspectRatio: 1.2,
                   ),
-                  itemCount: themeNotifier.gameThemes.themes.length,
+                  itemCount: themeNotifier.gameThemes.length,
                   itemBuilder: (context, index) {
-                    final theme = themeNotifier.gameThemes.themes[index];
-                    final isSelected = themeNotifier.gameThemes.selectedThemeIndex == index;
+                    final theme = themeNotifier.gameThemes[index];
+                    final isSelected = themeNotifier.themeLoadingState.selectedThemeIndex == index;
 
                     return ThemeCard(
                       theme: theme,

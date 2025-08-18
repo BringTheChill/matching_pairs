@@ -3,6 +3,8 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:matching_pairs/application/matching_pairs_state.dart';
+import 'package:matching_pairs/core/constants/game_constants.dart';
+import 'package:matching_pairs/core/extensions/game_theme_extensions.dart';
 import 'package:matching_pairs/core/themes/game_theme.dart';
 
 class MatchingPairsNotifier extends ChangeNotifier {
@@ -13,9 +15,9 @@ class MatchingPairsNotifier extends ChangeNotifier {
   MatchingPairsState get state => _state;
 
   void initialize({GameTheme? gameTheme}) {
-    final symbols =  gameTheme?.symbols ?? [ '🍌', '🍇', '🍓', '🍉'];
+    final symbols = gameTheme.symbolsOrDefault();
     
-    final selectedSymbols = symbols.take(4).toList();
+    final selectedSymbols = symbols.take(GameConstants.defaultPairCount).toList();
     final List<GameCardData> cards = [];
 
     for (int i = 0; i < selectedSymbols.length; i++) {
@@ -34,13 +36,16 @@ class MatchingPairsNotifier extends ChangeNotifier {
     _state = _state.copyWith(
       isGameStarted: true,
       isTimerActive: true,
-      timeRemaining: 30,
+      timeRemaining: GameConstants.gameTimeLimit,
     );
     _startTimer();
     notifyListeners();
   }
 
   void selectCard(String cardId) {
+    // Input validation
+    if (cardId.isEmpty) return;
+    
     // Don't allow selection if game is not started or already completed
     if (!_state.isGameStarted || _state.isGameCompleted || _state.timeRemaining <= 0) {
       return;
@@ -93,7 +98,7 @@ class MatchingPairsNotifier extends ChangeNotifier {
       _markCardsAsMatched([firstId, secondId]);
 
       // Update score and matched pairs count
-      final newScore = _state.score + 100;
+      final newScore = _state.score + GameConstants.baseScore;
       final newMatchedPairs = _state.matchedPairs + 1;
 
       _state = _state.copyWith(
@@ -110,7 +115,7 @@ class MatchingPairsNotifier extends ChangeNotifier {
     } else {
       // Flip back after a short delay
       _flipBackTimer?.cancel();
-      _flipBackTimer = Timer(const Duration(seconds: 1), () {
+      _flipBackTimer = Timer(GameConstants.matchCheckDelay, () {
         _flipCardsBack([firstId, secondId]);
         _state = _state.copyWith(selectedCardIds: [], attempts: newAttempts);
         notifyListeners();
@@ -144,8 +149,8 @@ class MatchingPairsNotifier extends ChangeNotifier {
   void _completeGame() {
     _stopTimer();
 
-    final efficiencyBonus = max(0, (100 - _state.attempts * 10));
-    final timeBonus = _state.timeRemaining * 10;
+    final efficiencyBonus = max(0, (GameConstants.baseScore - _state.attempts * GameConstants.efficiencyPenalty));
+    final timeBonus = _state.timeRemaining * GameConstants.timeBonusMultiplier;
     final finalScore = _state.score + efficiencyBonus + timeBonus;
 
     _state = _state.copyWith(isGameCompleted: true, score: finalScore);

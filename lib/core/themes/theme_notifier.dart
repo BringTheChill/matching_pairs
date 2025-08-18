@@ -1,21 +1,23 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:matching_pairs/core/models/theme_loading_state.dart';
 import 'package:matching_pairs/core/themes/game_theme.dart';
 import 'package:matching_pairs/core/themes/game_theme_service.dart';
 
 class ThemeNotifier extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system; // Default to system theme
-  GameThemeCollection _gameThemes = const GameThemeCollection();
-  bool _isLoadingThemes = false;
+  ThemeLoadingState _themeLoadingState = const ThemeLoadingState();
 
   ThemeMode get themeMode => _themeMode;
-  GameThemeCollection get gameThemes => _gameThemes;
-  bool get isLoadingThemes => _isLoadingThemes;
+  ThemeLoadingState get themeLoadingState => _themeLoadingState;
+  bool get isLoadingThemes => _themeLoadingState.isLoading;
+  String? get themeError => _themeLoadingState.error;
+  List<GameTheme> get gameThemes => _themeLoadingState.themes;
 
   bool get isDarkMode => _themeMode == ThemeMode.dark;
 
-  GameTheme? get currentGameTheme => _gameThemes.selectedTheme;
+  GameTheme? get currentGameTheme => _themeLoadingState.selectedTheme;
 
   void toggleTheme() {
     switch (_themeMode) {
@@ -55,25 +57,46 @@ class ThemeNotifier extends ChangeNotifier {
   }
 
   Future<void> loadGameThemes() async {
-    _isLoadingThemes = true;
+    _themeLoadingState = _themeLoadingState.copyWith(
+      isLoading: true,
+      error: null,
+    );
     notifyListeners();
 
     try {
       final themes = await GameThemeService.getAllThemes();
-      _gameThemes = GameThemeCollection(themes: themes);
+      
+      // If no themes loaded, provide a default theme
+      final finalThemes = themes.isEmpty 
+          ? [GameThemeService.getDefaultTheme()]
+          : themes;
+          
+      _themeLoadingState = _themeLoadingState.copyWith(
+        isLoading: false,
+        themes: finalThemes,
+        error: null,
+      );
     } catch (e) {
-      // Handle error while loading themes
       log("Error loading game themes: $e");
-      _gameThemes = const GameThemeCollection();
+      
+      // Provide default theme as fallback
+      _themeLoadingState = _themeLoadingState.copyWith(
+        isLoading: false,
+        themes: [GameThemeService.getDefaultTheme()],
+        error: 'Failed to load themes. Using default theme.',
+      );
     }
 
-    _isLoadingThemes = false;
     notifyListeners();
+  }
+  
+  void retryLoadingThemes() {
+    loadGameThemes();
   }
 
   void selectGameTheme(int index) {
-    if (index >= 0 && index < _gameThemes.themes.length) {
-      _gameThemes = _gameThemes.copyWith(selectedThemeIndex: index);
+    if (index >= 0 && index < _themeLoadingState.themes.length) {
+      _themeLoadingState = _themeLoadingState.copyWith(selectedThemeIndex: index);
       notifyListeners();
     }
   }

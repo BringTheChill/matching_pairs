@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:matching_pairs/core/constants/game_constants.dart';
 
 part 'matching_pairs_state.freezed.dart';
 
@@ -16,7 +17,7 @@ abstract class MatchingPairsState with _$MatchingPairsState {
     @Default(0) int matchedPairs,
     @Default(0) int attempts,
     @Default(0) int totalPairs,
-    @Default(30) int timeRemaining,
+    @Default(GameConstants.gameTimeLimit) int timeRemaining,
     @Default(false) bool isTimerActive
   }) = _MatchingPairsState;
 
@@ -30,13 +31,13 @@ abstract class MatchingPairsState with _$MatchingPairsState {
     matchedPairs: 0,
     attempts: 0,
     totalPairs: 0,
-    timeRemaining: 30,
+    timeRemaining: GameConstants.gameTimeLimit,
     isTimerActive: false
   );
 
   // Helper getters
-  bool get canSelectMoreCards => selectedCardIds.length < 2;
-  bool get hasTwoCardsSelected => selectedCardIds.length == 2;
+  bool get canSelectMoreCards => selectedCardIds.length < GameConstants.maxCardsSelected;
+  bool get hasTwoCardsSelected => selectedCardIds.length == GameConstants.maxCardsSelected;
   bool get allParisMatched => matchedPairs == totalPairs;
   String get formattedTime {
     final minutes = timeRemaining ~/ 60;
