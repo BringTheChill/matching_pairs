@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:developer';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
 import 'game_theme.dart';
 
 class GameThemeService {
   static const String _localThemesPatch = 'lib/core/themes/theme.json';
+  static const String _firebaseThemesUrl = 'https://firebasestorage.googleapis.com/v0/b/concentrationgame-20753.appspot.com/o/themes.json?alt=media&token=6898245a-0586-4fed-b30e-5078faeba078';
 
   /// Load themes from a local JSON file
   static Future<List<GameTheme>> loadLocalThemes() async {
@@ -21,9 +23,39 @@ class GameThemeService {
     }
   }
 
-  /// Get all available themes (only local themes for now)
+  /// Load themes from Firebase URL
+  static Future<List<GameTheme>> loadFirebaseThemes() async {
+    try {
+      final response = await http.get(Uri.parse(_firebaseThemesUrl));
+      
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonList = json.decode(response.body);
+        return jsonList
+                .map((json) => GameTheme.fromJson(json as Map<String, dynamic>))
+                .toList();
+      } else {
+        log("Failed to load Firebase themes: ${response.statusCode}");
+        return [];
+      }
+    } catch (e) {
+      log("Error loading Firebase themes: $e");
+      return [];
+    }
+  }
+
+  /// Get all available themes (combines local and Firebase themes)
   static Future<List<GameTheme>> getAllThemes() async {
-    return await loadLocalThemes();
+    final List<GameTheme> allThemes = [];
+    
+    // Load local themes first
+    // final localThemes = await loadLocalThemes();
+    // allThemes.addAll(localThemes);
+    
+    // Load Firebase themes
+    final firebaseThemes = await loadFirebaseThemes();
+    allThemes.addAll(firebaseThemes);
+    
+    return allThemes;
   }
 
   /// Validate theme data structure
